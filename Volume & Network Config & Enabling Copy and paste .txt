@@ -1,0 +1,22 @@
+### How to Enable Copy and paste from host to VM and vice versa
+
+	* Check Article in this Link: https://www.techrepublic.com/article/how-to-enable-copy-and-paste-in-virtualbox/
+
+
+### Create Docker Volume
+>> docker volume create my_shared_volume
+
+### Create Docker Network 
+>> docker network create myNetwork 
+
+### Python
+>> docker run -it --name python-container -v my_shared_volume:/shared_data:rw 
+   python:3.8-slim  
+
+>> docker exec -it --user root  python-container /bin/bash 
+   chmod a+w /shared_data
+
+***************************************************************************************************************************
+### Better formatted way of seeing Containers
+>> docker ps --format "{{.ID}} {{.Names}}"
+>> docker ps -a  --format "{{.ID}} {{.Names}}"

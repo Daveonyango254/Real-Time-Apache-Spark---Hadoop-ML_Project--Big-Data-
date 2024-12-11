@@ -1,0 +1,254 @@
+***********************************************************************************************************
+### Change to Project directory
+
+cd /home/daveonyango/Projects
+***********************************************************************************************************
+
+### Kafka Configuration
+
+## start Zookeper:
+
+bin/zookeeper-server-start.sh config/zookeeper.properties
+
+
+## Start Kafka Brokers:
+
+docker run -d --name kafka-container1 --network myNetwork \
+    -e KAFKA_BROKER_ID=1 \
+    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-container1:9092 \
+    -e KAFKA_LOG_DIRS=/var/lib/kafka/data1 \
+    -e KAFKA_PROCESS_ROLES=broker,controller \
+    -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-container1:9093,2@kafka-container2:9093,3@kafka-container3:9093 \
+    -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT \
+    -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+    -e KAFKA_LISTENERS=PLAINTEXT://kafka-container1:9092,CONTROLLER://kafka-container1:9093 \
+    -p 9092:9092 -p 9093:9093 \
+    -v my_shared_volume:/shared_data:rw \
+    apache/kafka:latest
+
+docker run -d --name kafka-container2 --network myNetwork \
+    -e KAFKA_BROKER_ID=2 \
+    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-container2:9092 \
+    -e KAFKA_LOG_DIRS=/var/lib/kafka/data2 \
+    -e KAFKA_PROCESS_ROLES=broker,controller \
+    -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-container1:9093,2@kafka-container2:9093,3@kafka-container3:9093 \
+    -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT \
+    -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+    -e KAFKA_LISTENERS=PLAINTEXT://kafka-container2:9092,CONTROLLER://kafka-container2:9093 \
+    -p 9094:9092 -p 9095:9093 \
+    -v my_shared_volume:/shared_data:rw \
+    apache/kafka:latest
+
+docker run -d --name kafka-container3 --network myNetwork \
+    -e KAFKA_BROKER_ID=3 \
+    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-container3:9092 \
+    -e KAFKA_LOG_DIRS=/var/lib/kafka/data3 \
+    -e KAFKA_PROCESS_ROLES=broker,controller \
+    -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-container1:9093,2@kafka-container2:9093,3@kafka-container3:9093 \
+    -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT \
+    -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+    -e KAFKA_LISTENERS=PLAINTEXT://kafka-container3:9092,CONTROLLER://kafka-container3:9093 \
+    -p 9096:9092 -p 9097:9093 \
+    -v my_shared_volume:/shared_data:rw \
+    apache/kafka:latest
+
+
+## Create Kafka Topic
+
+kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic churn_topic
+***********************************************************************************************************
+
+### Configure Cassandra:
+
+## Run Cassandra Container:
+
+docker run -d --name cassandra-container --network myNetwork \
+    -v my_shared_volume:/shared_data:rw \
+    -p 9042:9042 \
+    -e CASSANDRA_CLUSTER_NAME=myCluster \
+    -e CASSANDRA_DC=datacenter1 \
+    -e CASSANDRA_RACK=rack1 \
+    -e CASSANDRA_SEEDS=cassandra-container \
+    cassandra:latest
+
+## Create Keyspace and Table
+
+from cassandra.cluster import Cluster
+
+cluster = Cluster(['cassandra-container'])
+session = cluster.connect()
+
+session.execute("""
+CREATE KEYSPACE IF NOT EXISTS churn_ks 
+WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}
+""")
+
+session.execute("USE churn_ks")
+
+session.execute("""
+CREATE TABLE IF NOT EXISTS churn_data (
+    customerID VARCHAR PRIMARY KEY,
+    Gender VARCHAR,
+    SeniorCitizen BOOLEAN,
+    Partner VARCHAR,
+    Dependents VARCHAR,
+    Tenure INT,
+    PhoneService VARCHAR,
+    MultipleLines VARCHAR,
+    InternetService VARCHAR,
+    OnlineSecurity VARCHAR,
+    OnlineBackup VARCHAR,
+    DeviceProtection VARCHAR,
+    TechSupport VARCHAR,
+    StreamingTV VARCHAR,
+    StreamingMovies VARCHAR,
+    Contract VARCHAR,
+    PaperlessBilling BOOLEAN,
+    PaymentMethod VARCHAR,
+    MonthlyCharges DECIMAL,
+    TotalCharges DECIMAL
+)
+""")
+***********************************************************
+
+### Configure MySQL
+
+## Run MySQL Container:
+ 
+docker run -d --name mysql-container --network myNetwork \
+    -v my_shared_volume:/shared_data:rw \
+    -p 3306:3306 \
+    -e MYSQL_ROOT_PASSWORD=root_password \
+    -e MYSQL_DATABASE=churn_db \
+    -e MYSQL_USER=user \
+    -e MYSQL_PASSWORD=password \
+    mysql:8.0.34
+
+## Create Database and Table:
+
+import pymysql
+
+connection = pymysql.connect(
+    host='localhost',
+    user='user',
+    password='password',
+    database='churn_db'
+)
+
+cursor = connection.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS churn_predictions (
+    customerID VARCHAR(50) PRIMARY KEY,
+    Gender VARCHAR(10),
+    SeniorCitizen BOOLEAN,
+    Partner VARCHAR(3),
+    Dependents VARCHAR(3),
+    Tenure INT,
+    PhoneService VARCHAR(3),
+    MultipleLines VARCHAR(20),
+    InternetService VARCHAR(20),
+    OnlineSecurity VARCHAR(3),
+    OnlineBackup VARCHAR(3),
+    DeviceProtection VARCHAR(3),
+    TechSupport VARCHAR(3),
+    StreamingTV VARCHAR(3),
+    StreamingMovies VARCHAR(3),
+    Contract VARCHAR(20),
+    PaperlessBilling BOOLEAN,
+    PaymentMethod VARCHAR(50),
+    MonthlyCharges DECIMAL(10, 2),
+    TotalCharges DECIMAL(10, 2),
+    ChurnPrediction VARCHAR(3)
+)
+""")
+***********************************************************************************************************
+
+
+### Configure Hadoop and Spark
+
+## Start Hadoop:
+
+start-dfs.sh
+start-yarn.sh
+
+## Start Spark:
+
+start-master.sh
+start-worker.sh spark://<master-hostname>:7077
+
+## Upload Data to HDFS:
+
+hdfs dfs -put /home/daveonyango/Projects/Train_Test.csv /user/hadoop/
+***********************************************************************************************************
+
+### Configure Superset
+
+## Run Superset Container:
+
+docker run -d --name superset --network myNetwork \
+    -p 8088:8088 \
+    -v my_shared_volume:/shared_data:rw \
+    apache/superset
+
+## Configure Superset:
+
+	# Access Superset at http://localhost:8088
+	# Set up the connection to the MySQL database.
+***********************************************************************************************************
+
+### Implement Kafka Producer
+
+## Implement Kafka Producer
+
+from kafka import KafkaProducer
+import csv
+import time
+
+producer = KafkaProducer(bootstrap_servers=['kafka-container1:9092', 'kafka-container2:9092', 'kafka-container3:9092'])
+
+with open('/home/daveonyango/Projects/Test_Churn.csv', 'r') as file:
+    reader = csv.DictReader(file)
+    for row in reader:
+        producer.send('churn_topic', value=row)
+        time.sleep(1)  # Simulate real-time data streaming
+***********************************************************************************************************
+
+### Implement Spark Streaming
+
+## Create Spark Streaming Job:
+
+#***from pyspark.sql import Spark
+
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import from_json, col
+from pyspark.sql.types import StructType, StructField, StringType
+
+spark = SparkSession.builder \
+    .appName("KafkaSparkStreaming") \
+    .getOrCreate()
+
+schema = StructType([
+    StructField("customerID", StringType(), True),
+    StructField("gender", StringType(), True),
+    # Add other fields as per your CSV structure
+])
+
+df = spark \
+    .readStream \
+    .format("kafka") \
+    .option("kafka.bootstrap.servers", "kafka-container1:9092,kafka-container2:9092,kafka-container3:9092") \
+    .option("subscribe", "churn_topic") \
+    .load()
+
+df = df.selectExpr("CAST(value AS STRING)")
+
+df = df.select(from_json(col("value"), schema).alias("data")).select("data.*")
+
+query = df.writeStream \
+    .format("console") \
+    .start()
+
+query.awaitTermination()
+***********************************************************************************************************

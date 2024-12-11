@@ -1,0 +1,22 @@
+### Configure Superset
+
+## Run Superset Container:
+
+docker run -d --name superset-container --network myNetwork \
+    -p 8089:8089 \
+    -v my_shared_volume:/shared_data:rw \
+    apache/superset
+
+## Configure Superset:
+
+  #Start:
+   >> docker start superset-container
+
+  # Run this command to get superset-container's ip address
+   >> docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' superset-container
+
+
+  # Replace 'localhost' with the ip address (http://172.18.0.9:8888)
+	# Access Superset at http://localhost:8089
+	# Set up the connection to the MySQL database.
+***********************************************************************************************************

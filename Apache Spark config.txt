@@ -1,0 +1,46 @@
+### Configure Spark Containers If you don't have them Installed already
+***********************************************************************
+####** Step 1: Pull the Spark Image: First, pull the Spark image from Docker Hub: bash
+>>docker pull bitnami/spark:3.3.1
+
+
+####** Step 2: Start the Spark Master Container: Run the Spark Master container with the specified parameters
+>>docker run -d --name spark-container -p 8080:8080 -p 7077:7077 -v my_shared_volume:/shared_data:rw --network myNetwork bitnami/spark:3.3.1
+
+
+####** Step 3: Start the Spark Worker Container: Run the Spark Worker container:
+>> docker run -d --name spark-worker --link spark-container:spark-master -p 8081:8081 -v my_shared_volume:/shared_data:rw --network myNetwork bitnami/spark:3.3.1 bash -c "/opt/bitnami/spark/sbin/start-slave.sh spark://spark-container:7077"
+
+
+####** Step 4: Start a Jupyter Notebook Container with PySpark: Run the Jupyter Notebook container:
+>>docker run -d --name jupyter-pyspark -p 8888:8888 -v my_shared_volume:/shared_data:rw --network myNetwork jupyter/pyspark-notebook
+***********************************************************************************************************
+
+
+## Start Spark Containers & Jupyter Notebook Container
+>> docker start spark-container
+>> docker start spark-worker
+>> docker start jupyter-pyspark
+
+***********************************************************************************************************
+## Run this command to get your jupyter-pyspark container’s ip address
+	>>docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' jupyter-pyspark
+
+## Open your web browser and go to http://CONTAINERIPADDRESS:8888. You should see the Jupyter Notebook   interface. Use this to write and run your Spark MLlib code.
+
+ ##Your Jupyter notebook might ask you for a password /token. Run the following command to access the token
+
+		>> docker exec jupyter-pyspark jupyter server list
+			## N/B: You can change it to your customized password
+
+
+
+
+
+
+N/B: IP address changes everytime you start Jupyter Notebook Container
+
+http://172.18.0.3:8888
+
+# Use the data in the Jupyter PySpark container:
+>> docker exec jupyter-pyspark bash -c "cat /shared_data/Train_Churn.csv "

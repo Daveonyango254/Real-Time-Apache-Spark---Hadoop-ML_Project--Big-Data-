@@ -1,0 +1,96 @@
+Here we make sure that our Hadoop container is up and running, we then import the data from Local Storage file to Hadoop and creating a copy of the data in the shared volume to be able to be accessed both inside and outside the container and with other containers too.
+***********************************************************************************
+### Configure Hadoop if you dont already have the container
+	##Run the Hadoop Docker Container***
+#*** Start the Hadoop container with a shared volume and necessary ports exposed:
+>>docker run -d \
+  --name hadoop-container \
+  -v my_shared_volume:/shared_data:rw \
+  -p 8042:8042 \
+  -p 8088:8088 \
+  -p 19888:19888 \
+  -p 50070:50070 \
+  -p 50075:50075 \
+  --network myNetwork \
+  harisekhon/Hadoop
+
+# start the Hadoop Container
+>> docker start hadoop-container
+
+# Access the Hadoop container:
+>> docker exec -it hadoop-container bash
+
+####** Create & Configure the yarn-site.xml File*************************************************************************
+# Create the Directory (if it doesn't exist)
+>> mkdir -p /hadoop-2.8.2/etc/hadoop/
+
+# Create and Modify the yarn-site.xml File
+# Use the following command to create and modify the yarn-site.xml file with the necessary configurations:
+
+>>sed -i '/<configuration>/ a\
+<property>\
+  <name>yarn.scheduler.maximum-allocation-mb</name>\
+  <value>4096</value>\
+</property>\
+<property>\
+  <name>yarn.scheduler.maximum-allocation-vcores</name>\
+  <value>2</value>\
+</property>' /hadoop-2.8.2/etc/hadoop/yarn-site.xml
+
+### Restart Yarn after configuration
+>>cd /hadoop-2.8.2
+Stop YARN Services
+>>sbin/stop-yarn.sh
+Start YARN Services
+>>sbin/start-yarn.sh
+
+
+>>exit
+************************************************************************************************************
+************************************************************************************************************
+
+# If using Hadoop container, make sure file is accessible by copying it into the container
+>>docker cp /home/daveonyango/Projects/Train_Churn.csv hadoop-container:/Train_Churn.csv
+
+# Access the Hadoop container:
+>> docker exec -it hadoop-container bash
+
+## Start Hadoop:(If using the not containerized version)
+# stop-dfs.sh
+# stop-yarn.sh
+
+## Upload Data to HDFS:
+	# create the directory
+	>> hdfs dfs -mkdir -p /user/Hadoop
+
+	# upload
+		#** If using Hadoop on Host Machine
+	>> hdfs dfs -put /home/daveonyango/Projects/Train_Churn.csv /user/Hadoop/
+		#** If using a Container
+	>> hdfs dfs -put /Train_Churn.csv /user/Hadoop/
+
+	# verify upload thru'
+	>> hdfs dfs -ls /user/Hadoop	                                 # List directory content
+	>> hdfs dfs -stat /user/Hadoop/Train_Churn.csv                   # check file details
+	>> hdfs dfs -cat /user/Hadoop/Train_Churn.csv | head -n 10       # view first 10 lines
+***********************************************************************************************************
+# Copy the data from HDFS to the shared volume (Make it accessible both inside & outside the container)
+>> docker exec hadoop-container bash -c "hdfs dfs -get /user/Hadoop/Train_Churn.csv /shared_data/Train_Churn.csv"
+
+************************************************************************************************************
+
+
+
+***********************************************************************************************************
+Notes:
+******
+Make sure all this services are running after starting Hadoop thru' the jps command Especially if using HDFS on VM
+8114 DataNode
+8323 SecondaryNameNode
+8535 ResourceManager
+9432 NameNode
+9864 Jps
+8683 NodeManager
+If the NameNode does not start, Run this commands to format and start it. (If not using containerized version: Only one can run at a time to avoid port conflicts)
+
+>> hdfs namenode -format     	# only for first time you are setting up hadoop

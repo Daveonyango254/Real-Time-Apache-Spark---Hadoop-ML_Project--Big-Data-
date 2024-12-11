@@ -1,0 +1,49 @@
+### CASSANDRA
+	## Configure Cassandra if not configured already:
+
+docker run -d --name cassandra-container --network myNetwork \
+    -v my_shared_volume:/shared_data:rw \
+    -p 9042:9042 \
+    -e CASSANDRA_CLUSTER_NAME=myCluster \
+    -e CASSANDRA_DC=datacenter1 \
+    -e CASSANDRA_RACK=rack1 \
+    -e CASSANDRA_SEEDS=cassandra-container \
+    cassandra:latest
+
+ 		** OR: Remove the '-e CASSANDRA_SEEDS=cassandra-container \' to point to an IP since running a single node
+
+## Access the docker container (& run cassandra scripts directly or open a python3 interactive shell)
+>> docker exec -it cassandra-container bash
+
+## Start the Cassandra CQL shell:
+>>cqlsh
+
+## Run your CQL commands:
+
+CREATE KEYSPACE IF NOT EXISTS churn_ks 
+WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+
+USE churn_ks;
+
+CREATE TABLE IF NOT EXISTS churn_data (
+    customerID VARCHAR PRIMARY KEY,
+    Gender VARCHAR,
+    SeniorCitizen BOOLEAN,
+    Partner VARCHAR,
+    Dependents VARCHAR,
+    Tenure INT,
+    PhoneService VARCHAR,
+    MultipleLines VARCHAR,
+    InternetService VARCHAR,
+    OnlineSecurity VARCHAR,
+    OnlineBackup VARCHAR,
+    DeviceProtection VARCHAR,
+    TechSupport VARCHAR,
+    StreamingTV VARCHAR,
+    StreamingMovies VARCHAR,
+    Contract VARCHAR,
+    PaperlessBilling BOOLEAN,
+    PaymentMethod VARCHAR,
+    MonthlyCharges DECIMAL,
+    TotalCharges DECIMAL
+);

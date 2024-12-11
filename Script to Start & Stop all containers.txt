@@ -1,0 +1,67 @@
+# Hadoop (Storage)***************************************************
+>> docker start hadoop-container
+
+
+
+## Start Spark Containers & Jupyter Notebook Container***************
+>> docker start spark-master
+>> docker start spark-worker
+>> docker start jupyter-pyspark
+
+# Kafka: Messaging & Real time streaming******************************
+>> docker start kafka-container1 kafka-container2 kafka-container3
+
+# Databases *********************************************************
+>> docker start mysql-container
+>> docker start cassandra-container
+
+# Dashboard *********************************************************
+>> docker start superset-container
+
+
+
+
+
+
+#####Starting containers and stoping them with a script*****************
+>> nano start_containers                  (open the text editor & paste the script below: create script file)
+
+	#*******start_containers.sh***********************
+#!/bin/bash
+
+# Start all containers
+docker start \
+    kafka-container3 \
+    kafka-container2 \
+    kafka-container1 \
+    zookeeper-container \
+    jupyter-pyspark \
+    spark-worker \
+    spark-master \
+    cassandra-container \
+    mysql-container \
+    hadoop-container \
+    python-container
+
+echo "All containers started successfully!"
+
+	#*************************************************
+
+
+## Make the script executable
+>> chmod +x start_containers.sh
+
+## Run the script
+>> ./start_containers.sh
+
+########################Do the same for stop containers******************
+
+
+## To verify if all containers are running in a nice formatted way
+
+>> docker ps --format "{{.ID}} {{.Names}}"
+>> docker ps -a  --format "{{.ID}} {{.Names}}"
+
+
+
+

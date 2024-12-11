@@ -1,0 +1,93 @@
+***********************************************************************************************************
+### Install Kafka if not installed
+# Download Kafka
+>> wget https://archive.apache.org/dist/kafka/3.5.1/kafka_2.13-3.5.1.tgz
+
+# Extract the Kafka Archive:
+>> tar -xzf kafka_2.13-3.5.1.tgz
+
+# Move Kafka to /opt Directory:
+>> sudo mv kafka_2.13-3.5.1 /opt/kafka
+
+## Set Up Kafka
+# Navigate to Kafka Directory:
+>> cd /opt/kafka
+
+## Add kafka to path (U dnt have to cd: Make kafka commands availlable globally)
+>> export PATH=$PATH:/opt/kafka/bin
+   source ~/.bashrc  # or source ~/.zshrc
+***********************************************************************************************************
+
+### Kafka Configuration
+
+## create  Zookeper container if it doesn't exist:
+# Run Zookeeper Container
+>> docker run -d --name zookeeper-container --network myNetwork \
+    -p 2181:2181 \
+    zookeeper:latest
+
+## Install Java
+>> sudo apt update
+   sudo apt install -y default-jdk
+ # set JAVA home path
+  >> sudo update-alternatives --config java              # ** output will show the path to the java binary
+
+  >> export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+     export PATH=$JAVA_HOME/bin:$PATH
+
+  >> echo $JAVA_HOME              # ** verify configuration
+     java -version
+
+
+
+    
+# start Zookeper
+>> bin/zookeeper-server-start.sh config/zookeeper.properties
+
+
+## Start Kafka Brokers:
+
+docker run -d --name kafka-container1 --network myNetwork \
+    -e KAFKA_BROKER_ID=1 \
+    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-container1:9092 \
+    -e KAFKA_LOG_DIRS=/var/lib/kafka/data1 \
+    -e KAFKA_PROCESS_ROLES=broker,controller \
+    -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-container1:9093,2@kafka-container2:9093,3@kafka-container3:9093 \
+    -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT \
+    -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+    -e KAFKA_LISTENERS=PLAINTEXT://kafka-container1:9092,CONTROLLER://kafka-container1:9093 \
+    -p 9092:9092 -p 9093:9093 \
+    -v my_shared_volume:/shared_data:rw \
+    apache/kafka:latest
+
+docker run -d --name kafka-container2 --network myNetwork \
+    -e KAFKA_BROKER_ID=2 \
+    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-container2:9092 \
+    -e KAFKA_LOG_DIRS=/var/lib/kafka/data2 \
+    -e KAFKA_PROCESS_ROLES=broker,controller \
+    -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-container1:9093,2@kafka-container2:9093,3@kafka-container3:9093 \
+    -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT \
+    -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+    -e KAFKA_LISTENERS=PLAINTEXT://kafka-container2:9092,CONTROLLER://kafka-container2:9093 \
+    -p 9094:9092 -p 9095:9093 \
+    -v my_shared_volume:/shared_data:rw \
+    apache/kafka:latest
+
+docker run -d --name kafka-container3 --network myNetwork \
+    -e KAFKA_BROKER_ID=3 \
+    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-container3:9092 \
+    -e KAFKA_LOG_DIRS=/var/lib/kafka/data3 \
+    -e KAFKA_PROCESS_ROLES=broker,controller \
+    -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-container1:9093,2@kafka-container2:9093,3@kafka-container3:9093 \
+    -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT \
+    -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+    -e KAFKA_LISTENERS=PLAINTEXT://kafka-container3:9092,CONTROLLER://kafka-container3:9093 \
+    -p 9096:9092 -p 9097:9093 \
+    -v my_shared_volume:/shared_data:rw \
+    apache/kafka:latest
+
+
+## Create Kafka Topic
+
+kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic churn_topic
+***********************************************************************************************************

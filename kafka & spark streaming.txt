@@ -1,0 +1,60 @@
+## Implement kafka producer
+
+!pip install kafka-python -q
+
+## To check the current working directory in jupyter
+import os
+#print(os.getcwd())    # used in producer file_path
+
+from kafka import KafkaProducer
+import csv
+import time
+import json
+from pyspark.sql import SparkSession  # Import SparkSession
+
+class Producer:
+    def __init__(self, bootstrap_servers, topic, file_path):
+        self.producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
+        self.topic = topic
+        self.file_path = file_path
+
+    def produce(self):
+        with open(self.file_path, 'r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                # Serialize the row dictionary to JSON and encode it to bytes
+                value_bytes = json.dumps(row).encode('utf-8')
+                
+                # Send the serialized data to Kafka
+                self.producer.send(self.topic, value=value_bytes)
+                print(f"Message sent: {row}")
+                time.sleep(1)
+
+if __name__ == '__main__':
+    producer = Producer(
+        bootstrap_servers=['kafka-container1:9092', 'kafka-container2:9092', 'kafka-container3:9092'],
+        topic='churn_topic',
+        file_path='/home/jovyan/Project/Test_Churn.csv'
+    )
+    producer.produce()
+
+
+
+    # Initialize Spark session ****************************************************
+
+    spark = SparkSession.builder \
+        .appName("KafkaSparkIntegration") \
+        .getOrCreate()
+
+    # Read the streamed data from the shared volume
+    df = spark.read.text("/shared_data/output/test.txt")
+
+    # Show the content of the file
+    df.show(truncate=False)
+
+    # Stop the Spark session
+    spark.stop()
+
+
+### VERIFYIN DOCKER
+docker exec hadoop-container bash -c "ls /shared_data/output"
